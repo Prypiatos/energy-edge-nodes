@@ -12,7 +12,7 @@ The node firmware is expected to:
 * connect to MQTT and subscribe to command topics
 * read PZEM data every second
 * store readings in a queue
-* publish telemetry every 60 seconds
+* publish telemetry every 2 seconds
 * publish health every 30 seconds
 * detect and publish events immediately
 * buffer unsent outgoing messages
@@ -69,7 +69,7 @@ The node should not rely on one giant loop with everything mixed together.
 
 ### Telemetry publish
 
-* every **60 seconds**
+* every **2 seconds**
 
 ### Health publish
 
@@ -226,16 +226,16 @@ This task should only focus on reading and forwarding data. It should not do eve
 
 ---
 
-## 4. Telemetry Aggregation Task
+## 4. Telemetry Task
 
 ### Purpose
 
-Turn 1-second samples into one 60-second telemetry message.
+Turn 1-second samples into one 2-second telemetry message.
 
 ### Responsibilities
 
 * read samples from sensor queue
-* maintain rolling collection of 60 samples
+* maintain rolling collection of samples
 * select or aggregate final values
 * build telemetry payload
 * publish via MQTT
@@ -244,29 +244,20 @@ Turn 1-second samples into one 60-second telemetry message.
 ### Minimum required telemetry fields
 
 * `node_id`
-* `node_type`
 * `timestamp`
-* `sequence_no`
 * `voltage`
 * `current`
 * `power`
 * `energy_wh`
-* `frequency`
-* `power_factor`
-* `buffered`
 
 ### Aggregation rule
 
-At minimum, after 60 samples:
+At minimum, after 2 samples:
 
 * use the latest valid reading for instantaneous values
 * use current cumulative energy from the most recent valid reading
 
 You may also later calculate averages internally, but only the agreed external contract should be published.
-
-### Sequence number rule
-
-* increment for every telemetry message
 
 ---
 
@@ -439,7 +430,7 @@ energy/nodes/{node_id}/cmd/config
 ```json
 {
   "request_id": "cfg_0015",
-  "publish_interval_sec": 60,
+  "publish_interval_sec": 2,
   "health_interval_sec": 30,
   "current_warning_threshold": 8.0,
   "current_critical_threshold": 10.0,
@@ -676,7 +667,7 @@ Set from combined subsystem health:
 
 ## Telemetry
 
-* publish every 60 seconds
+* publish every 2 seconds
 * QoS 1
 * increment telemetry sequence number
 * if failed, buffer
@@ -775,7 +766,7 @@ Before calling the node "working," it must support all of the following:
 * MQTT reconnect after disconnect
 * PZEM reading every second
 * valid latest sample storage
-* telemetry publish every 60 seconds
+* telemetry publish every 2 seconds
 * health publish every 30 seconds
 * immediate event detection and publish
 * get status command handling
@@ -819,7 +810,7 @@ Build in this order:
 
 ### Phase 5
 
-* publish telemetry every 60 seconds
+* publish telemetry every 2 seconds
 * publish health every 30 seconds
 
 ### Phase 6
@@ -859,7 +850,7 @@ Build in this order:
 
 ## Telemetry
 
-* telemetry is published once per minute
+* telemetry is published once per 2 seconds
 * payload matches agreed schema
 * sequence number increments correctly
 
@@ -926,7 +917,7 @@ A working E1 node should behave like this:
 3. connects to MQTT
 4. reads PZEM every second
 5. stores samples
-6. publishes telemetry every minute
+6. publishes telemetry every 2 seconds
 7. publishes health every 30 seconds
 8. publishes events immediately when detected
 9. handles backend commands
@@ -1034,39 +1025,29 @@ Periodic energy readings and summary values used by the backend, analytics, and 
 
 ### Publish Frequency
 
-Collected every second and published every 60 seconds.
+Collected every second and published every 2 seconds.
 
 ### Required Fields
 
-| Field          | Type    | Description                           |
-| -------------- | ------- | ------------------------------------- |
-| `node_id`      | string  | Unique node identifier                |
-| `node_type`    | string  | `plug`, `circuit`, or `main`          |
-| `timestamp`    | string  | Message creation time                 |
-| `sequence_no`  | integer | Monotonic message number from node    |
-| `voltage`      | number  | Voltage in volts                      |
-| `current`      | number  | Current in amps                       |
-| `power`        | number  | Active power in watts                 |
-| `energy_wh`    | number  | Cumulative energy in watt-hours       |
-| `frequency`    | number  | Grid frequency in Hz                  |
-| `power_factor` | number  | Power factor                          |
-| `buffered`     | boolean | Whether this is delayed buffered data |
+| Field          | Type     | Description                           |
+| -------------- | -------  | ------------------------------------- |
+| `node_id`      | string   | Unique node identifier                |
+| `timestamp`    | integer  | Message creation time in epoch ms     |
+| `voltage`      | number   | Voltage in volts                      |
+| `current`      | number   | Current in amps                       |
+| `power`        | number   | Active power in watts                 |
+| `energy_wh`    | number   | Cumulative energy in watt-hours       |
 
 ### Example Payload
 
 ```json
 {
   "node_id": "plug_01",
-  "node_type": "plug",
-  "timestamp": "2026-04-10T10:15:00Z",
-  "sequence_no": 1542,
+  "timestamp": 1618032900000,
   "voltage": 230.1,
   "current": 1.78,
   "power": 401.6,
   "energy_wh": 1250.4,
-  "frequency": 50.0,
-  "power_factor": 0.95,
-  "buffered": false
 }
 ```
 
@@ -1278,7 +1259,7 @@ Send configuration updates such as publish interval and thresholds.
 ```json
 {
   "request_id": "cfg_0015",
-  "publish_interval_sec": 60,
+  "publish_interval_sec": 2,
   "health_interval_sec": 30,
   "current_warning_threshold": 8.0,
   "current_critical_threshold": 10.0,
