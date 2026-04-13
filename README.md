@@ -1,6 +1,7 @@
 # Energy Edge Nodes
 
 This repository contains the firmware and shared interface specification for the E1 edge nodes in the smart energy monitoring system.
+See [CONTRIBUTING.md](/home/sheron/Documents/energy-edge-nodes/CONTRIBUTING.md) for setup, commit conventions, and the issue and pull request workflow.
 
 Each node is an ESP32-based device connected to a PZEM-004T energy meter. The node reads electrical measurements, detects local events, buffers unsent data, publishes MQTT messages, and responds to backend commands.
 
