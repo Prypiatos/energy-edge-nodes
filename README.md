@@ -117,6 +117,26 @@ This does not need to be exact, but the code should be split by responsibility.
 
 ## Required Tasks
 
+## Team Task Allocation
+
+The implementation work for this repository is divided among the team members as follows.
+
+| Member | Assigned work |
+| --- | --- |
+| Umaya | Wi-Fi task, reconnect handling, and connection state updates |
+| Damindu | MQTT task, buffer manager task, and message retry/flush flow after reconnection |
+| Yohan | Sensor read task, telemetry task, and health task |
+| Kalhara | Event detection task, command handler task, and final integration/testing support |
+| Sheron | Cross-cutting support across all modules, including pull request review, debugging, issue triage, integration support, and final stabilization/fixes |
+
+### Ownership Notes
+
+* Umaya keeps ownership of the Wi-Fi module as already assigned.
+* Damindu handles broker communication and offline message recovery because those two parts are tightly coupled.
+* Yohan handles the sensor-to-payload path, including reading meter data and publishing telemetry/health outputs.
+* Kalhara handles event and command logic, then supports end-to-end integration and validation across the full node flow.
+* Sheron supports the full repository across module boundaries by reviewing changes, resolving integration issues, debugging failures, and helping drive the final production-ready state.
+
 ## 1. Wi-Fi Task
 
 ### Purpose
