@@ -2,6 +2,10 @@
 
 Describe the change and the problem it solves.
 
+## Related Issue
+
+Link the GitHub issue this PR addresses.
+
 ## Scope
 
 - [ ] Firmware behavior
