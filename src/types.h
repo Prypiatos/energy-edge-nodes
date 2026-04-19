@@ -8,8 +8,6 @@ struct SensorSample {
     float current;
     float power;
     float energy_wh;
-    float frequency;
-    float power_factor;
     bool valid;
 };
 
