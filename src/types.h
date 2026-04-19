@@ -8,8 +8,6 @@ struct SensorSample {
     float current;
     float power;
     float energy_wh;
-    float frequency;
-    float power_factor;
     bool valid;
 };
 
@@ -40,8 +38,6 @@ struct SystemState {
     bool mqtt_connected;
     bool sensor_ok;
     std::uint32_t uptime_sec;
-    std::uint32_t telemetry_sequence_no;
-    std::uint32_t health_sequence_no;
     std::uint32_t buffered_count;
     char status[24];
 };
