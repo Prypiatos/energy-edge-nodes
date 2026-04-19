@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "buffer_manager.h"
 #include "command_manager.h"
 #include "config.h"
@@ -10,7 +11,12 @@
 #include "time_manager.h"
 #include "wifi_manager.h"
 
-int main() {
+void setup() {
+    Serial.begin(115200);
     InitRuntimeConfig();
-    return 0;
+    InitMqttManager();
+}
+
+void loop() {
+    RunMqttTask();
 }
