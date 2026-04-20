@@ -8,9 +8,9 @@
 #include <cstring>
 
 // ─────────────────────────────────────────
-// Broker settings — adjust to your network
+// Broker settings — update kBrokerHost before flashing
 // ─────────────────────────────────────────
-static constexpr char kBrokerHost[] = "192.168.1.100"; // your MQTT broker IP
+static constexpr char kBrokerHost[] = "192.168.1.100"; // TODO: update to actual broker IP
 static constexpr int  kBrokerPort   = 1883;
 static constexpr int  kMqttRetryIntervalMs = 5000;
 
