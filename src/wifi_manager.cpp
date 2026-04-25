@@ -4,6 +4,7 @@
 #include "wifi_config.h"
 
 void TaskWifi(void* pvParameters) {
+    (void)pvParameters;
     vTaskDelay(pdMS_TO_TICKS(200));
 
     WiFi.mode(WIFI_STA);
@@ -26,7 +27,7 @@ void TaskWifi(void* pvParameters) {
 
             int tries = 0;
 
-            while (WiFi.status() != WL_CONNECTED && tries++ < 50)
+            while (WiFi.status() != WL_CONNECTED)
             {
                 vTaskDelay(pdMS_TO_TICKS(200));
                 Serial.print(".");
