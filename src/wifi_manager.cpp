@@ -1,11 +1,13 @@
+#include <Arduino.h>
 #include "wifi_manager.h"
 #include <WiFi.h>
 #include "globals.h"
 #include "wifi_config.h"
+#include "config.h"
 
-void TaskWifi(void* pvParameters) {
+static void TaskWifi(void* pvParameters) {
     (void)pvParameters;
-    vTaskDelay(pdMS_TO_TICKS(200));
+    vTaskDelay(pdMS_TO_TICKS(kWifiShortDelayMs));
 
     WiFi.mode(WIFI_STA);
     WiFi.setAutoReconnect(true);
@@ -21,15 +23,15 @@ void TaskWifi(void* pvParameters) {
             g_system_state.wifi_connected = false;
 
             WiFi.disconnect(true);
-            vTaskDelay(pdMS_TO_TICKS(200));
+            vTaskDelay(pdMS_TO_TICKS(kWifiShortDelayMs));
 
             WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
             int tries = 0;
 
-            while (WiFi.status() != WL_CONNECTED)
+            while (WiFi.status() != WL_CONNECTED && tries++ < kWifiMaxRetryCount)
             {
-                vTaskDelay(pdMS_TO_TICKS(200));
+                vTaskDelay(pdMS_TO_TICKS(kWifiShortDelayMs));
                 Serial.print(".");
             }
 
@@ -50,13 +52,13 @@ void TaskWifi(void* pvParameters) {
                 Serial.println("WiFi connect failed, retrying...");
                 g_system_state.wifi_connected = false;
 
-                vTaskDelay(pdMS_TO_TICKS(2000));
+                vTaskDelay(pdMS_TO_TICKS(kWifiRetryBackoffMs));
             }
         }
         else
         {
             g_system_state.wifi_connected = true;
-            vTaskDelay(pdMS_TO_TICKS(5000));
+            vTaskDelay(pdMS_TO_TICKS(kWifiConnectedCheckMs));
         }
     }
 }

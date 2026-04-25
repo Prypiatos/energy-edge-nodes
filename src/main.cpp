@@ -16,7 +16,9 @@ void setup() {
     Serial.begin(115200);
 
     // Initialize config
-    InitRuntimeConfig();
+    if (!InitRuntimeConfig()) {
+    Serial.println("Config load failed, using defaults");
+    }
 
     // Initialize Wi-Fi
     InitWifiManager();
