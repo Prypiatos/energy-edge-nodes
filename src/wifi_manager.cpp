@@ -68,13 +68,17 @@ void InitWifiManager() {
 }
 
 void RunWifiTask() {
-    xTaskCreatePinnedToCore(
-        TaskWifi,
-        "TaskWifi",
-        8192,
-        nullptr,
-        1,
-        nullptr,
-        0
+    BaseType_t result = xTaskCreatePinnedToCore(
+    TaskWifi,
+    "TaskWifi",
+    8192,
+    nullptr,
+    1,
+    nullptr,
+    0
     );
+
+    if (result != pdPASS) {
+        Serial.println("Failed to create WiFi task");
+    }
 }
