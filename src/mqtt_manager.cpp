@@ -99,14 +99,23 @@ static bool TryConnect() {
 // ─────────────────────────────────────────
 static void SubscribeToCommandTopics() {
     char topic[128];
+    bool subscribed = false;
 
     BuildCommandTopic(topic, sizeof(topic), "get_status");
-    s_mqtt_client.subscribe(topic);
-    std::printf("[MQTT] Subscribed to %s\n", topic);
+    subscribed = s_mqtt_client.subscribe(topic);
+    if (subscribed) {
+        std::printf("[MQTT] Subscribed to %s\n", topic);
+    } else {
+        std::printf("[MQTT] Failed to subscribe to %s\n", topic);
+    }
 
     BuildCommandTopic(topic, sizeof(topic), "config");
-    s_mqtt_client.subscribe(topic);
-    std::printf("[MQTT] Subscribed to %s\n", topic);
+    subscribed = s_mqtt_client.subscribe(topic);
+    if (subscribed) {
+        std::printf("[MQTT] Subscribed to %s\n", topic);
+    } else {
+        std::printf("[MQTT] Failed to subscribe to %s\n", topic);
+    }
 }
 
 // ─────────────────────────────────────────
