@@ -1,19 +1,21 @@
 #include "event_manager.h"
 
+#include "buffer_manager.h"
 #include "config.h"
 #include "globals.h"
+#include "mqtt_manager.h"
 
 #include <cstdio>
 #include <cstring>
+#include <ctime>
 
-// Operational thresholds and queue behavior for event generation/retry.
-constexpr std::size_t kEventQueueCapacity = 16;
-constexpr std::uint32_t kDefaultEventCooldownSec = 10;
-constexpr float kLoadActiveThreshold = 0.05F;
-constexpr float kLoadZeroThreshold = 0.01F;
+// Operational thresholds and cooldown for event generation.
+static constexpr std::uint32_t kDefaultEventCooldownSec = 10;
+static constexpr float kLoadActiveThreshold = 0.05F;
+static constexpr float kLoadZeroThreshold = 0.01F;
 
 // MQTT topic template used for publishing node event messages.
-constexpr char kEventTopicTemplate[] = "energy/nodes/%s/events";
+static constexpr char kEventTopicTemplate[] = "energy/nodes/%s/events";
 
 // Internal event categories used for cooldown bookkeeping.
 enum class EventKind : std::size_t {
@@ -23,19 +25,16 @@ enum class EventKind : std::size_t {
 	Count,
 };
 
-// FIFO-style retry buffer for events that could not be published.
-EventMessage g_pending_events[kEventQueueCapacity] = {};
-std::size_t g_pending_count = 0;
-
-SensorSample g_previous_sample = {};
-bool g_has_previous_sample = false;
-bool g_overload_active = false;
+// Module-private state; internal linkage prevents accidental access from other TUs.
+static SensorSample g_previous_sample = {};
+static bool g_has_previous_sample = false;
+static bool g_overload_active = false;
 
 // Per-event last-emitted timestamps used to apply cooldown.
-std::uint32_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
+static std::uint32_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
 
 // Uses runtime override when present; otherwise falls back to compile-time default.
-float GetWarningCurrentThreshold() {
+static float GetWarningCurrentThreshold() {
 	if (g_runtime_config.current_warning_threshold > 0.0F) {
 		return g_runtime_config.current_warning_threshold;
 	}
@@ -44,7 +43,7 @@ float GetWarningCurrentThreshold() {
 }
 
 // Uses runtime override when present; otherwise falls back to compile-time default.
-float GetPowerSpikeDeltaThreshold() {
+static float GetPowerSpikeDeltaThreshold() {
 	if (g_runtime_config.power_spike_delta > 0.0F) {
 		return g_runtime_config.power_spike_delta;
 	}
@@ -53,11 +52,17 @@ float GetPowerSpikeDeltaThreshold() {
 }
 
 // Returns true when the event kind is still inside its suppression window.
-bool IsWithinCooldown(EventKind kind, std::uint32_t timestamp_sec) {
+static bool IsWithinCooldown(EventKind kind, std::uint32_t timestamp_sec) {
 	const std::size_t index = static_cast<std::size_t>(kind);
 	const std::uint32_t last_timestamp = g_last_event_timestamps[index];
 	if (last_timestamp == 0) {
 		return false;
+	}
+
+	// Guard against clock regressions (e.g. NTP sync moving time backwards).
+	// Treat any non-advancing or reversed timestamp as still within cooldown.
+	if (timestamp_sec <= last_timestamp) {
+		return true;
 	}
 
 	// Suppress duplicate event type bursts within a fixed cooldown window.
@@ -65,17 +70,24 @@ bool IsWithinCooldown(EventKind kind, std::uint32_t timestamp_sec) {
 }
 
 // Records the latest emission time for cooldown checks.
-void MarkEventEmitted(EventKind kind, std::uint32_t timestamp_sec) {
+static void MarkEventEmitted(EventKind kind, std::uint32_t timestamp_sec) {
 	g_last_event_timestamps[static_cast<std::size_t>(kind)] = timestamp_sec;
 }
 
-// Mirrors retry queue depth into shared system state for telemetry/health reporting.
-void UpdateBufferedCount() {
-	g_system_state.buffered_count = static_cast<std::uint32_t>(g_pending_count);
+// Formats a Unix epoch timestamp as an ISO 8601 UTC string (e.g. "2024-01-01T00:00:00Z").
+static void FormatTimestampISO8601(std::uint32_t timestamp, char* buf, std::size_t buf_size) {
+	if (buf == nullptr || buf_size == 0) {
+		return;
+	}
+
+	const time_t t = static_cast<time_t>(timestamp);
+	struct tm tm_info = {};
+	gmtime_r(&t, &tm_info);
+	strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%SZ", &tm_info);
 }
 
 // Builds the MQTT event topic for the default node identity.
-void BuildTopic(char* topic, std::size_t topic_size) {
+static void BuildTopic(char* topic, std::size_t topic_size) {
 	if (topic == nullptr || topic_size == 0) {
 		return;
 	}
@@ -83,20 +95,23 @@ void BuildTopic(char* topic, std::size_t topic_size) {
 	std::snprintf(topic, topic_size, kEventTopicTemplate, kDefaultNodeId);
 }
 
-// Serializes a single EventMessage as compact JSON.
-void BuildEventPayload(const EventMessage& event, char* payload, std::size_t payload_size) {
+// Serializes a single EventMessage as compact JSON with an ISO 8601 timestamp.
+static void BuildEventPayload(const EventMessage& event, char* payload, std::size_t payload_size) {
 	if (payload == nullptr || payload_size == 0) {
 		return;
 	}
 
+	char timestamp_str[32] = {};
+	FormatTimestampISO8601(event.timestamp, timestamp_str, sizeof(timestamp_str));
+
 	std::snprintf(payload,
 				  payload_size,
-				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":%lu,"
+				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":\"%s\","
 				  "\"event_type\":\"%s\",\"severity\":\"%s\",\"message\":\"%s\","
 				  "\"buffered\":%s}",
 				  kDefaultNodeId,
 				  kDefaultNodeType,
-				  static_cast<unsigned long>(event.timestamp),
+				  timestamp_str,
 				  event.event_type,
 				  event.severity,
 				  event.message,
@@ -104,65 +119,37 @@ void BuildEventPayload(const EventMessage& event, char* payload, std::size_t pay
 }
 
 // Attempts to publish one event only when connectivity prerequisites are met.
-bool TryPublishEvent(const EventMessage& event) {
+// Returns true when the MQTT broker accepted the message.
+static bool TryPublishEvent(const EventMessage& event) {
 	if (!g_system_state.wifi_connected || !g_system_state.mqtt_connected) {
 		return false;
 	}
 
-	char topic[128];
+	char topic[128] = {};
 	BuildTopic(topic, sizeof(topic));
 
-	char payload[512];
+	char payload[512] = {};
 	BuildEventPayload(event, payload, sizeof(payload));
 
-	return std::strlen(topic) > 0 && std::strlen(payload) > 0;
+	return MqttPublish(topic, payload);
 }
 
-bool QueueEventForRetry(const EventMessage& event) {
-	if (g_pending_count >= kEventQueueCapacity) {
-		// Keep newest events by dropping the oldest one when buffer is full.
-		for (std::size_t index = 1; index < g_pending_count; ++index) {
-			g_pending_events[index - 1] = g_pending_events[index];
-		}
-
-		g_pending_count = kEventQueueCapacity - 1;
-	}
-
-	g_pending_events[g_pending_count] = event;
-	++g_pending_count;
-	UpdateBufferedCount();
-	return true;
-}
-
-// Attempts to publish queued events in order until one publish attempt fails.
-void FlushPendingEvents() {
-	if (g_pending_count == 0) {
-		return;
-	}
-
-	while (g_pending_count > 0) {
-		// Stop on first failure to preserve order and retry later.
-		if (!TryPublishEvent(g_pending_events[0])) {
-			break;
-		}
-
-		for (std::size_t index = 1; index < g_pending_count; ++index) {
-			g_pending_events[index - 1] = g_pending_events[index];
-		}
-
-		--g_pending_count;
-	}
-
-	UpdateBufferedCount();
+// Routes a failed publish to the shared buffer manager for later retry.
+static void BufferEvent(const EventMessage& event) {
+	OutgoingMessage msg = {};
+	BuildTopic(msg.topic, sizeof(msg.topic));
+	BuildEventPayload(event, msg.payload, sizeof(msg.payload));
+	msg.buffered = true;
+	EnqueueOutgoingMessage(msg);
 }
 
 // Initializes a fixed-size EventMessage safely from provided fields.
-void BuildEvent(EventMessage* event,
-				const char* event_type,
-				const char* severity,
-				const char* message,
-				std::uint32_t timestamp,
-				bool buffered) {
+static void BuildEvent(EventMessage* event,
+					   const char* event_type,
+					   const char* severity,
+					   const char* message,
+					   std::uint32_t timestamp,
+					   bool buffered) {
 	if (event == nullptr) {
 		return;
 	}
@@ -175,12 +162,12 @@ void BuildEvent(EventMessage* event,
 	event->buffered = buffered;
 }
 
-// Emits an event with cooldown enforcement and buffering fallback.
-void EmitEvent(EventKind kind,
-			   const char* event_type,
-			   const char* severity,
-			   const char* message,
-			   std::uint32_t timestamp) {
+// Emits an event with cooldown enforcement; routes to buffer on publish failure.
+static void EmitEvent(EventKind kind,
+					  const char* event_type,
+					  const char* severity,
+					  const char* message,
+					  std::uint32_t timestamp) {
 	if (IsWithinCooldown(kind, timestamp)) {
 		return;
 	}
@@ -189,39 +176,32 @@ void EmitEvent(EventKind kind,
 	BuildEvent(&event, event_type, severity, message, timestamp, false);
 	if (!TryPublishEvent(event)) {
 		event.buffered = true;
-		QueueEventForRetry(event);
+		BufferEvent(event);
 	}
 
 	MarkEventEmitted(kind, timestamp);
 }
 
 // Treats load as active if either current or power rises above active threshold.
-bool IsLoadActive(const SensorSample& sample) {
+static bool IsLoadActive(const SensorSample& sample) {
 	return sample.current > kLoadActiveThreshold || sample.power > kLoadActiveThreshold;
 }
 
 // Treats load as zero only when both current and power are below zero threshold.
-bool IsLoadZero(const SensorSample& sample) {
+static bool IsLoadZero(const SensorSample& sample) {
 	return sample.current <= kLoadZeroThreshold && sample.power <= kLoadZeroThreshold;
 }
 
 // Public API
 void InitEventManager() {
-	g_pending_count = 0;
-	std::memset(g_pending_events, 0, sizeof(g_pending_events));
 	std::memset(g_last_event_timestamps, 0, sizeof(g_last_event_timestamps));
 
 	g_previous_sample = SensorSample{};
 	g_has_previous_sample = false;
 	g_overload_active = false;
-
-	UpdateBufferedCount();
 }
 
 void RunEventTask() {
-	// Always attempt to drain buffered events first when connectivity is available.
-	FlushPendingEvents();
-
 	const SensorSample current = g_latest_sample;
 	if (!current.valid) {
 		return;
