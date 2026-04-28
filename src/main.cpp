@@ -28,7 +28,7 @@ void setup() {
     InitHealthManager();
 
     // Initialize event and command processing.
-    evnt_mngr::InitEventManager();
+    InitEventManager();
     InitCommandManager();
 
     // Initialize buffering layer.
@@ -52,7 +52,7 @@ void loop() {
     RunHealthTask();
 
     // Detect events and handle commands.
-    evnt_mngr::RunEventTask();
+    RunEventTask();
     RunCommandTask();
 
     // Manage buffering of outgoing messages.

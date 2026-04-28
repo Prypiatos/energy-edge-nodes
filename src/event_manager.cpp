@@ -6,9 +6,6 @@
 #include <cstdio>
 #include <cstring>
 
-namespace evnt_mngr {
-
-
 // Operational thresholds and queue behavior for event generation/retry.
 constexpr std::size_t kEventQueueCapacity = 16;
 constexpr std::uint32_t kDefaultEventCooldownSec = 10;
@@ -276,4 +273,3 @@ void RunEventTask() {
 	g_previous_sample = current;
 }
 
-}  // namespace evnt_mngr
