@@ -9,7 +9,7 @@ void RunMqttTask() {}
 // Publishes a message to the given topic via the active MQTT connection.
 // Returns true only when the broker accepted the message.
 bool MqttPublish(const char* topic, const char* payload) {
-	if (topic == nullptr || payload == nullptr) {
+	if (topic == nullptr || topic[0] == '\0' || payload == nullptr || payload[0] == '\0') {
 		return false;
 	}
 

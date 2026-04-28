@@ -30,6 +30,9 @@ static SensorSample g_previous_sample = {};
 static bool g_has_previous_sample = false;
 static bool g_overload_active = false;
 
+// Buffer size for ISO 8601 UTC timestamp strings (e.g. "2024-01-01T00:00:00Z" + NUL).
+static constexpr std::size_t kISO8601TimestampSize = 32;
+
 // Per-event last-emitted timestamps used to apply cooldown.
 static std::uint32_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
 
@@ -101,7 +104,7 @@ static void BuildEventPayload(const EventMessage& event, char* payload, std::siz
 		return;
 	}
 
-	char timestamp_str[32] = {};
+	char timestamp_str[kISO8601TimestampSize] = {};
 	FormatTimestampISO8601(event.timestamp, timestamp_str, sizeof(timestamp_str));
 
 	std::snprintf(payload,
