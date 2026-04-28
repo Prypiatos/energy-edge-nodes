@@ -18,3 +18,8 @@ constexpr char kDefaultNodeType[] = "plug";
 
 RuntimeConfig GetDefaultRuntimeConfig();
 bool InitRuntimeConfig(const char* config_path = kFlashConfigPath);
+
+constexpr int kWifiMaxRetryCount = 50;
+constexpr int kWifiShortDelayMs = 200;
+constexpr int kWifiRetryBackoffMs = 2000;
+constexpr int kWifiConnectedCheckMs = 5000;
