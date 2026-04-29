@@ -12,25 +12,58 @@
 #include "time_manager.h"
 #include "wifi_manager.h"
 
+// One-time initialization called at boot.
 void setup() {
     Serial.begin(115200);
 
-    // Initialize config
+    // Initialize runtime configuration first (loads from flash, falls back to defaults).
     if (!InitRuntimeConfig()) {
-    Serial.println("Config load failed, using defaults");
+        Serial.println("Config load failed, using defaults");
     }
 
-    // Initialize Wi-Fi
+    // Initialize time manager for timestamp generation.
+    InitTimeManager();
+
+    // Initialize connectivity managers. RunWifiTask spawns a FreeRTOS task.
     InitWifiManager();
     RunWifiTask();
+    InitMqttManager();
 
-    // (Later you will add more tasks here)
-    // RunMqttTask();
-    // RunSensorTask();
-    // etc.
+    // Initialize data acquisition and aggregation.
+    InitSensorManager();
+    InitTelemetryManager();
+    InitHealthManager();
+
+    // Initialize event and command processing.
+    InitEventManager();
+    InitCommandManager();
+
+    // Initialize buffering layer.
+    InitBufferManager();
 }
 
+// Main event loop called repeatedly by Arduino framework.
+// FreeRTOS tasks (e.g. Wi-Fi) run independently; other managers are polled here.
 void loop() {
-    // Keep loop alive (FreeRTOS tasks handle everything)
+    // Sync time if needed (NTP or SNTP).
+    SyncTimeIfNeeded();
+
+    // Handle MQTT connectivity.
+    RunMqttTask();
+
+    // Acquire sensor readings and process input.
+    RunSensorTask();
+
+    // Generate telemetry and health reports.
+    RunTelemetryTask();
+    RunHealthTask();
+
+    // Detect events and handle commands.
+    RunEventTask();
+    RunCommandTask();
+
+    // Flush buffered messages when connectivity is available.
+    RunBufferTask();
+
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
