@@ -32,6 +32,7 @@ static void BuildCommandTopic(char* buffer, std::size_t size, const char* comman
 // Public — called once at startup
 // ─────────────────────────────────────────
 void InitMqttManager() {
+    s_mqtt_client.setBufferSize(512);
     s_mqtt_client.setServer(kBrokerHost, kBrokerPort);
     s_mqtt_client.setCallback(OnMessageReceived);
 }
@@ -67,6 +68,9 @@ void RunMqttTask() {
 // ─────────────────────────────────────────
 // Publish — used by telemetry, health, etc.
 // ─────────────────────────────────────────
+// Note: PubSubClient::publish() uses QoS 0 only.
+// QoS 1 publish support requires library extension — deferred to later sprint.
+
 bool MqttPublish(const char* topic, const char* payload) {
     if (!s_mqtt_client.connected()) {
         return false;
@@ -102,7 +106,7 @@ static void SubscribeToCommandTopics() {
     bool subscribed = false;
 
     BuildCommandTopic(topic, sizeof(topic), "get_status");
-    subscribed = s_mqtt_client.subscribe(topic);
+    subscribed = s_mqtt_client.subscribe(topic, 1);
     if (subscribed) {
         std::printf("[MQTT] Subscribed to %s\n", topic);
     } else {
@@ -110,7 +114,7 @@ static void SubscribeToCommandTopics() {
     }
 
     BuildCommandTopic(topic, sizeof(topic), "config");
-    subscribed = s_mqtt_client.subscribe(topic);
+    subscribed = s_mqtt_client.subscribe(topic, 1);
     if (subscribed) {
         std::printf("[MQTT] Subscribed to %s\n", topic);
     } else {
