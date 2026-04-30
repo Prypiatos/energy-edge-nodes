@@ -16,17 +16,23 @@ namespace {
 constexpr unsigned long kMqttRetryIntervalMs = 5000;
 constexpr std::uint16_t kMqttKeepAliveSec = 30;
 constexpr std::size_t kCommandTopicBufferSize = 128;
+constexpr std::size_t kCommandQueueCapacity = 8;
 
 constexpr char kCommandGetStatusTopicTemplate[] = "energy/nodes/%s/cmd/get_status";
 constexpr char kCommandConfigTopicTemplate[] = "energy/nodes/%s/cmd/config";
+
+struct PendingCommand {
+    char topic[kCommandTopicBufferSize];
+    char payload[kOutgoingPayloadMaxLength];
+};
 
 WiFiClient g_mqtt_transport;
 PubSubClient g_mqtt_client(g_mqtt_transport);
 
 unsigned long g_last_mqtt_retry_ms = 0;
-char g_pending_command_topic[kCommandTopicBufferSize] = {};
-char g_pending_command_payload[kOutgoingPayloadMaxLength] = {};
-bool g_has_pending_command = false;
+PendingCommand g_pending_commands[kCommandQueueCapacity] = {};
+std::size_t g_pending_command_head = 0;
+std::size_t g_pending_command_count = 0;
 
 void CopyString(char* destination, std::size_t destination_size, const char* source) {
     if (destination == nullptr || destination_size == 0) {
@@ -49,6 +55,34 @@ void BuildCommandTopic(char* topic, std::size_t topic_size, const char* pattern)
     std::snprintf(topic, topic_size, pattern, GetNodeId());
 }
 
+std::size_t GetPendingCommandTailIndex() {
+    return (g_pending_command_head + g_pending_command_count) % kCommandQueueCapacity;
+}
+
+void EnqueuePendingCommand(const char* topic, const std::uint8_t* payload, unsigned int length) {
+    if (topic == nullptr) {
+        return;
+    }
+
+    if (g_pending_command_count >= kCommandQueueCapacity) {
+        // Preserve FIFO behavior by evicting the oldest queued command when capacity is exceeded.
+        g_pending_command_head = (g_pending_command_head + 1) % kCommandQueueCapacity;
+        --g_pending_command_count;
+        Serial.println("MQTT command queue full, dropping oldest command");
+    }
+
+    PendingCommand& command = g_pending_commands[GetPendingCommandTailIndex()];
+    CopyString(command.topic, sizeof(command.topic), topic);
+
+    const std::size_t safe_length = (length < (sizeof(command.payload) - 1U)) ? length : (sizeof(command.payload) - 1U);
+    if (safe_length > 0) {
+        std::memcpy(command.payload, payload, safe_length);
+    }
+    command.payload[safe_length] = '\0';
+
+    ++g_pending_command_count;
+}
+
 void SetMqttConnected(bool connected) {
     g_system_state.mqtt_connected = connected;
     UpdateSystemStatus();
@@ -59,18 +93,10 @@ void HandleMqttMessage(char* topic, std::uint8_t* payload, unsigned int length) 
         return;
     }
 
-    CopyString(g_pending_command_topic, sizeof(g_pending_command_topic), topic);
-
-    const std::size_t safe_length =
-        (length < (sizeof(g_pending_command_payload) - 1U)) ? length : (sizeof(g_pending_command_payload) - 1U);
-    if (safe_length > 0) {
-        std::memcpy(g_pending_command_payload, payload, safe_length);
-    }
-    g_pending_command_payload[safe_length] = '\0';
-    g_has_pending_command = true;
+    EnqueuePendingCommand(topic, payload, length);
 
     Serial.print("MQTT command received on topic: ");
-    Serial.println(g_pending_command_topic);
+    Serial.println(topic);
 }
 
 void ConfigureMqttClient() {
@@ -125,6 +151,8 @@ bool ConnectMqttClient() {
 
 void InitMqttManager() {
     ConfigureMqttClient();
+    g_pending_command_head = 0;
+    g_pending_command_count = 0;
     SetMqttConnected(false);
 }
 
@@ -183,15 +211,17 @@ bool ConsumePendingMqttCommand(char* topic,
                                std::size_t topic_size,
                                char* payload,
                                std::size_t payload_size) {
-    if (!g_has_pending_command || topic == nullptr || payload == nullptr || topic_size == 0 || payload_size == 0) {
+    if (g_pending_command_count == 0 || topic == nullptr || payload == nullptr || topic_size == 0 || payload_size == 0) {
         return false;
     }
 
-    CopyString(topic, topic_size, g_pending_command_topic);
-    CopyString(payload, payload_size, g_pending_command_payload);
+    const PendingCommand& command = g_pending_commands[g_pending_command_head];
+    CopyString(topic, topic_size, command.topic);
+    CopyString(payload, payload_size, command.payload);
 
-    g_pending_command_topic[0] = '\0';
-    g_pending_command_payload[0] = '\0';
-    g_has_pending_command = false;
+    g_pending_commands[g_pending_command_head].topic[0] = '\0';
+    g_pending_commands[g_pending_command_head].payload[0] = '\0';
+    g_pending_command_head = (g_pending_command_head + 1) % kCommandQueueCapacity;
+    --g_pending_command_count;
     return true;
 }
