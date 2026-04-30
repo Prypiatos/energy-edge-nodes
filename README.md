@@ -52,6 +52,8 @@ pio run -t upload
 
 When the node boots, it reads `/config.json` from LittleFS.
 
+Current sensor integration defaults to the PZEM library's ESP32 `Serial2` example wiring (`RX=16`, `TX=17`). If your hardware uses different pins, update the sensor manager before flashing.
+
 <details>
 <summary><strong>Internal Firmware Guide for the E1 Team</strong></summary>
 
