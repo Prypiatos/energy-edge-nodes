@@ -5,6 +5,7 @@ Current validation path:
 - `./scripts/validate-config-example.sh`
 - `pio run`
 - `pio test`
+- `test/HARDWARE_VALIDATION.md`
 
 Recommended near-term coverage:
 
