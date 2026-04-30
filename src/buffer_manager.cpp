@@ -1,11 +1,13 @@
 #include "buffer_manager.h"
 
 #include "globals.h"
+#include "mqtt_manager.h"
 
 #include <cstring>
 
 // Maximum number of outgoing messages that can be held in the in-memory buffer.
 static constexpr std::size_t kBufferCapacity = 32;
+static constexpr std::size_t kBufferFlushBatchSize = 4;
 
 static OutgoingMessage g_buffer[kBufferCapacity] = {};
 static std::size_t g_buffer_count = 0;
@@ -29,9 +31,31 @@ bool EnqueueOutgoingMessage(const OutgoingMessage& msg) {
 	}
 
 	g_buffer[g_buffer_count] = msg;
+	g_buffer[g_buffer_count].buffered = true;
 	++g_buffer_count;
 	g_system_state.buffered_count = static_cast<std::uint32_t>(g_buffer_count);
 	return true;
 }
 
-void RunBufferTask() {}
+void RunBufferTask() {
+	if (g_buffer_count == 0 || !g_system_state.wifi_connected || !g_system_state.mqtt_connected) {
+		return;
+	}
+
+	std::size_t flushed_count = 0;
+	while (g_buffer_count > 0 && flushed_count < kBufferFlushBatchSize) {
+		const OutgoingMessage& oldest = g_buffer[0];
+		if (!MqttPublish(oldest.topic, oldest.payload)) {
+			break;
+		}
+
+		for (std::size_t index = 1; index < g_buffer_count; ++index) {
+			g_buffer[index - 1] = g_buffer[index];
+		}
+
+		--g_buffer_count;
+		++flushed_count;
+	}
+
+	g_system_state.buffered_count = static_cast<std::uint32_t>(g_buffer_count);
+}

@@ -39,6 +39,7 @@ RuntimeConfig BuildDefaultRuntimeConfig() {
     RuntimeConfig config = {};
     CopyString(config.node_id, sizeof(config.node_id), kDefaultNodeId);
     CopyString(config.node_type, sizeof(config.node_type), kDefaultNodeType);
+    config.mqtt_port = kDefaultMqttPort;
     config.telemetry_interval_sec = kTelemetryPublishIntervalSec;
     config.health_interval_sec = kHealthPublishIntervalSec;
     config.current_warning_threshold = kDefaultCurrentWarningThreshold;
@@ -96,6 +97,12 @@ void ApplyConfigOverrides(JsonVariantConst root, RuntimeConfig* config) {
     const char* wifi_password = root["wifi_password"] | config->wifi_password;
     CopyString(config->wifi_ssid, sizeof(config->wifi_ssid), wifi_ssid);
     CopyString(config->wifi_password, sizeof(config->wifi_password), wifi_password);
+    const char* mqtt_host = root["mqtt_host"] | config->mqtt_host;
+    const char* mqtt_username = root["mqtt_username"] | config->mqtt_username;
+    const char* mqtt_password = root["mqtt_password"] | config->mqtt_password;
+    CopyString(config->mqtt_host, sizeof(config->mqtt_host), mqtt_host);
+    CopyString(config->mqtt_username, sizeof(config->mqtt_username), mqtt_username);
+    CopyString(config->mqtt_password, sizeof(config->mqtt_password), mqtt_password);
 
     std::uint32_t telemetry_interval = config->telemetry_interval_sec;
     if (!root["telemetry_interval_sec"].isNull()) {
@@ -103,10 +110,15 @@ void ApplyConfigOverrides(JsonVariantConst root, RuntimeConfig* config) {
     } else if (!root["publish_interval_sec"].isNull()) {
         telemetry_interval = root["publish_interval_sec"].as<std::uint32_t>();
     }
+    const std::uint16_t mqtt_port = root["mqtt_port"] | config->mqtt_port;
     const std::uint32_t health_interval = root["health_interval_sec"] | config->health_interval_sec;
     const float warning_threshold = root["current_warning_threshold"] | config->current_warning_threshold;
     const float critical_threshold = root["current_critical_threshold"] | config->current_critical_threshold;
     const float power_spike_delta = root["power_spike_delta"] | config->power_spike_delta;
+
+    if (mqtt_port > 0) {
+        config->mqtt_port = mqtt_port;
+    }
 
     if (telemetry_interval > 0) {
         config->telemetry_interval_sec = telemetry_interval;
@@ -166,6 +178,10 @@ bool SaveRuntimeConfig(const RuntimeConfig& config, const char* config_path) {
     document["node_type"] = config.node_type;
     document["wifi_ssid"] = config.wifi_ssid;
     document["wifi_password"] = config.wifi_password;
+    document["mqtt_host"] = config.mqtt_host;
+    document["mqtt_port"] = config.mqtt_port;
+    document["mqtt_username"] = config.mqtt_username;
+    document["mqtt_password"] = config.mqtt_password;
     document["telemetry_interval_sec"] = config.telemetry_interval_sec;
     document["health_interval_sec"] = config.health_interval_sec;
     document["current_warning_threshold"] = config.current_warning_threshold;
@@ -187,6 +203,10 @@ void BuildRuntimeConfigJson(const RuntimeConfig& config, char* buffer, std::size
     document["node_type"] = config.node_type;
     document["wifi_ssid"] = config.wifi_ssid;
     document["wifi_password"] = config.wifi_password;
+    document["mqtt_host"] = config.mqtt_host;
+    document["mqtt_port"] = config.mqtt_port;
+    document["mqtt_username"] = config.mqtt_username;
+    document["mqtt_password"] = config.mqtt_password;
     document["telemetry_interval_sec"] = config.telemetry_interval_sec;
     document["health_interval_sec"] = config.health_interval_sec;
     document["current_warning_threshold"] = config.current_warning_threshold;
@@ -210,4 +230,8 @@ bool HasNodeIdentity() {
 
 bool HasWifiCredentials() {
     return g_runtime_config.wifi_ssid[0] != '\0' && g_runtime_config.wifi_password[0] != '\0';
+}
+
+bool HasMqttBrokerConfig() {
+    return g_runtime_config.mqtt_host[0] != '\0' && g_runtime_config.mqtt_port > 0;
 }

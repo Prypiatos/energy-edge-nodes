@@ -7,6 +7,11 @@ constexpr std::size_t kNodeIdMaxLength = 32;
 constexpr std::size_t kNodeTypeMaxLength = 16;
 constexpr std::size_t kWifiSsidMaxLength = 64;
 constexpr std::size_t kWifiPasswordMaxLength = 64;
+constexpr std::size_t kMqttHostMaxLength = 96;
+constexpr std::size_t kMqttUsernameMaxLength = 64;
+constexpr std::size_t kMqttPasswordMaxLength = 64;
+constexpr std::size_t kOutgoingTopicMaxLength = 128;
+constexpr std::size_t kOutgoingPayloadMaxLength = 512;
 
 struct SensorSample {
     std::uint32_t timestamp;
@@ -28,8 +33,8 @@ struct EventMessage {
 };
 
 struct OutgoingMessage {
-    char topic[128];
-    char payload[512];
+    char topic[kOutgoingTopicMaxLength];
+    char payload[kOutgoingPayloadMaxLength];
     bool buffered;
 };
 
@@ -38,6 +43,10 @@ struct RuntimeConfig {
     char node_type[kNodeTypeMaxLength];
     char wifi_ssid[kWifiSsidMaxLength];
     char wifi_password[kWifiPasswordMaxLength];
+    char mqtt_host[kMqttHostMaxLength];
+    char mqtt_username[kMqttUsernameMaxLength];
+    char mqtt_password[kMqttPasswordMaxLength];
+    std::uint16_t mqtt_port;
     std::uint32_t telemetry_interval_sec;
     std::uint32_t health_interval_sec;
     float current_warning_threshold;
