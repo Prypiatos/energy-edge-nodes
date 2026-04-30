@@ -72,12 +72,14 @@ void RunMqttTask() {
 // QoS 1 publish support requires library extension — deferred to later sprint.
 
 bool MqttPublish(const char* topic, const char* payload) {
+    if (topic == nullptr || topic[0] == '\0' || payload == nullptr || payload[0] == '\0') {
+        return false;
+    }
     if (!s_mqtt_client.connected()) {
         return false;
     }
     return s_mqtt_client.publish(topic, payload);
 }
-
 // ─────────────────────────────────────────
 // Internal — connect to broker
 // ─────────────────────────────────────────
