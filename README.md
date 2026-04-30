@@ -30,7 +30,7 @@ The repository tracks [data/config.example.json](/home/sheron/Documents/energy-e
 To provision a real ESP32:
 
 1. Create `data/config.json` from the example file.
-2. Fill in the real `node_id`, `node_type`, Wi-Fi credentials, and thresholds.
+2. Fill in the real `node_id`, `node_type`, Wi-Fi credentials, MQTT broker settings, and thresholds.
 3. Validate the JSON locally.
 4. Upload the LittleFS filesystem image.
 5. Upload the firmware.

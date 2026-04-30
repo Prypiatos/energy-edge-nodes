@@ -22,6 +22,22 @@ jq -e '
 ' "$config_path" >/dev/null
 
 jq -e '
+  .mqtt_host | type == "string" and length > 0
+' "$config_path" >/dev/null
+
+jq -e '
+  .mqtt_port | type == "number" and . > 0
+' "$config_path" >/dev/null
+
+jq -e '
+  .mqtt_username | type == "string"
+' "$config_path" >/dev/null
+
+jq -e '
+  .mqtt_password | type == "string"
+' "$config_path" >/dev/null
+
+jq -e '
   (.telemetry_interval_sec | type == "number" and . > 0) and
   (.health_interval_sec | type == "number" and . > 0) and
   (.current_warning_threshold | type == "number" and . > 0) and

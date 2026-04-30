@@ -12,6 +12,7 @@ constexpr unsigned int kWifiRetryIntervalSec = 10;
 constexpr float kDefaultCurrentWarningThreshold = 8.0F;
 constexpr float kDefaultCurrentCriticalThreshold = 10.0F;
 constexpr float kDefaultPowerSpikeDelta = 300.0F;
+constexpr std::uint16_t kDefaultMqttPort = 1883;
 
 constexpr char kFlashConfigPath[] = "/config.json";
 
@@ -27,6 +28,7 @@ const char* GetNodeId();
 const char* GetNodeType();
 bool HasNodeIdentity();
 bool HasWifiCredentials();
+bool HasMqttBrokerConfig();
 
 constexpr int kWifiMaxRetryCount = 50;
 constexpr int kWifiShortDelayMs = 200;
