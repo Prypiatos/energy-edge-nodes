@@ -89,13 +89,13 @@ static void FormatTimestampISO8601(std::uint32_t timestamp, char* buf, std::size
 	strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%SZ", &tm_info);
 }
 
-// Builds the MQTT event topic for the default node identity.
+// Builds the MQTT event topic for the configured node identity.
 static void BuildTopic(char* topic, std::size_t topic_size) {
 	if (topic == nullptr || topic_size == 0) {
 		return;
 	}
 
-	std::snprintf(topic, topic_size, kEventTopicTemplate, kDefaultNodeId);
+	std::snprintf(topic, topic_size, kEventTopicTemplate, GetNodeId());
 }
 
 // Serializes a single EventMessage as compact JSON with an ISO 8601 timestamp.
@@ -112,8 +112,8 @@ static void BuildEventPayload(const EventMessage& event, char* payload, std::siz
 				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":\"%s\","
 				  "\"event_type\":\"%s\",\"severity\":\"%s\",\"message\":\"%s\","
 				  "\"buffered\":%s}",
-				  kDefaultNodeId,
-				  kDefaultNodeType,
+				  GetNodeId(),
+				  GetNodeType(),
 				  timestamp_str,
 				  event.event_type,
 				  event.severity,
@@ -255,4 +255,3 @@ void RunEventTask() {
 
 	g_previous_sample = current;
 }
-

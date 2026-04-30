@@ -1,6 +1,12 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+
+constexpr std::size_t kNodeIdMaxLength = 32;
+constexpr std::size_t kNodeTypeMaxLength = 16;
+constexpr std::size_t kWifiSsidMaxLength = 64;
+constexpr std::size_t kWifiPasswordMaxLength = 64;
 
 struct SensorSample {
     std::uint32_t timestamp;
@@ -8,6 +14,8 @@ struct SensorSample {
     float current;
     float power;
     float energy_wh;
+    float frequency_hz;
+    float power_factor;
     bool valid;
 };
 
@@ -26,6 +34,10 @@ struct OutgoingMessage {
 };
 
 struct RuntimeConfig {
+    char node_id[kNodeIdMaxLength];
+    char node_type[kNodeTypeMaxLength];
+    char wifi_ssid[kWifiSsidMaxLength];
+    char wifi_password[kWifiPasswordMaxLength];
     std::uint32_t telemetry_interval_sec;
     std::uint32_t health_interval_sec;
     float current_warning_threshold;
@@ -38,6 +50,8 @@ struct SystemState {
     bool mqtt_connected;
     bool sensor_ok;
     std::uint32_t uptime_sec;
+    std::uint32_t telemetry_sequence_no;
+    std::uint32_t health_sequence_no;
     std::uint32_t buffered_count;
     char status[24];
 };

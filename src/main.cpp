@@ -15,11 +15,13 @@
 // One-time initialization called at boot.
 void setup() {
     Serial.begin(115200);
+    InitSystemState();
 
     // Initialize runtime configuration first (loads from flash, falls back to defaults).
     if (!InitRuntimeConfig()) {
         Serial.println("Config load failed, using defaults");
     }
+    UpdateSystemStatus();
 
     // Initialize time manager for timestamp generation.
     InitTimeManager();
@@ -45,6 +47,8 @@ void setup() {
 // Main event loop called repeatedly by Arduino framework.
 // FreeRTOS tasks (e.g. Wi-Fi) run independently; other managers are polled here.
 void loop() {
+    RefreshSystemState();
+
     // Sync time if needed (NTP or SNTP).
     SyncTimeIfNeeded();
 
@@ -65,5 +69,6 @@ void loop() {
     // Flush buffered messages when connectivity is available.
     RunBufferTask();
 
+    RefreshSystemState();
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
