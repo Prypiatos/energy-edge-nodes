@@ -1,0 +1,11 @@
+{
+  "node_id": "plug_01",
+  "node_type": "plug",
+  "wifi_ssid": "replace-with-ssid",
+  "wifi_password": "replace-with-password",
+  "telemetry_interval_sec": 2,
+  "health_interval_sec": 30,
+  "current_warning_threshold": 8.0,
+  "current_critical_threshold": 10.0,
+  "power_spike_delta": 300.0
+}
