@@ -94,10 +94,10 @@ void RunTelemetryTask() {
     }
 
     // Build topic and payload
-    char topic[kTopicBufferSize];
+    char topic[kTopicSize];
     std::snprintf(topic, sizeof(topic), kTelemetryTopicTemplate, kDefaultNodeId);
 
-    char payload[kPayloadBufferSize];
+  char payload[kPayloadSize];
     BuildTelemetryPayload(g_latest_sample, g_telemetry_sequence_no, false,
                           payload, sizeof(payload));
 
