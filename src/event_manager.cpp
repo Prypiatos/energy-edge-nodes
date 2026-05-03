@@ -4,15 +4,14 @@
 #include "config.h"
 #include "globals.h"
 #include "mqtt_manager.h"
+#include "time_manager.h"
+#include "event_rules.h"
 
 #include <cstdio>
 #include <cstring>
-#include <ctime>
 
 // Operational thresholds and cooldown for event generation.
 static constexpr std::uint32_t kDefaultEventCooldownSec = 10;
-static constexpr float kLoadActiveThreshold = 0.05F;
-static constexpr float kLoadZeroThreshold = 0.01F;
 
 // MQTT topic template used for publishing node event messages.
 static constexpr char kEventTopicTemplate[] = "energy/nodes/%s/events";
@@ -29,9 +28,6 @@ enum class EventKind : std::size_t {
 static SensorSample g_previous_sample = {};
 static bool g_has_previous_sample = false;
 static bool g_overload_active = false;
-
-// Buffer size for ISO 8601 UTC timestamp strings (e.g. "2024-01-01T00:00:00Z" + NUL).
-static constexpr std::size_t kISO8601TimestampSize = 32;
 
 // Per-event last-emitted timestamps used to apply cooldown.
 static std::uint32_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
@@ -77,25 +73,13 @@ static void MarkEventEmitted(EventKind kind, std::uint32_t timestamp_sec) {
 	g_last_event_timestamps[static_cast<std::size_t>(kind)] = timestamp_sec;
 }
 
-// Formats a Unix epoch timestamp as an ISO 8601 UTC string (e.g. "2024-01-01T00:00:00Z").
-static void FormatTimestampISO8601(std::uint32_t timestamp, char* buf, std::size_t buf_size) {
-	if (buf == nullptr || buf_size == 0) {
-		return;
-	}
-
-	const time_t t = static_cast<time_t>(timestamp);
-	struct tm tm_info = {};
-	gmtime_r(&t, &tm_info);
-	strftime(buf, buf_size, "%Y-%m-%dT%H:%M:%SZ", &tm_info);
-}
-
-// Builds the MQTT event topic for the default node identity.
+// Builds the MQTT event topic for the configured node identity.
 static void BuildTopic(char* topic, std::size_t topic_size) {
 	if (topic == nullptr || topic_size == 0) {
 		return;
 	}
 
-	std::snprintf(topic, topic_size, kEventTopicTemplate, kDefaultNodeId);
+	std::snprintf(topic, topic_size, kEventTopicTemplate, GetNodeId());
 }
 
 // Serializes a single EventMessage as compact JSON with an ISO 8601 timestamp.
@@ -104,7 +88,7 @@ static void BuildEventPayload(const EventMessage& event, char* payload, std::siz
 		return;
 	}
 
-	char timestamp_str[kISO8601TimestampSize] = {};
+	char timestamp_str[32] = {};
 	FormatTimestampISO8601(event.timestamp, timestamp_str, sizeof(timestamp_str));
 
 	std::snprintf(payload,
@@ -112,8 +96,8 @@ static void BuildEventPayload(const EventMessage& event, char* payload, std::siz
 				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":\"%s\","
 				  "\"event_type\":\"%s\",\"severity\":\"%s\",\"message\":\"%s\","
 				  "\"buffered\":%s}",
-				  kDefaultNodeId,
-				  kDefaultNodeType,
+				  GetNodeId(),
+				  GetNodeType(),
 				  timestamp_str,
 				  event.event_type,
 				  event.severity,
@@ -185,16 +169,6 @@ static void EmitEvent(EventKind kind,
 	MarkEventEmitted(kind, timestamp);
 }
 
-// Treats load as active if either current or power rises above active threshold.
-static bool IsLoadActive(const SensorSample& sample) {
-	return sample.current > kLoadActiveThreshold || sample.power > kLoadActiveThreshold;
-}
-
-// Treats load as zero only when both current and power are below zero threshold.
-static bool IsLoadZero(const SensorSample& sample) {
-	return sample.current <= kLoadZeroThreshold && sample.power <= kLoadZeroThreshold;
-}
-
 // Public API
 void InitEventManager() {
 	std::memset(g_last_event_timestamps, 0, sizeof(g_last_event_timestamps));
@@ -223,9 +197,13 @@ void RunEventTask() {
 		return;
 	}
 
-	// Detect sudden positive power changes.
-	const float power_delta = current.power - g_previous_sample.power;
-	if (power_delta > GetPowerSpikeDeltaThreshold()) {
+	const EventEvaluation evaluation = EvaluateEventTransitions(g_previous_sample,
+																 current,
+																 GetWarningCurrentThreshold(),
+																 GetPowerSpikeDeltaThreshold(),
+																 g_overload_active);
+
+	if (evaluation.emit_power_spike) {
 		EmitEvent(EventKind::PowerSpike,
 				  "power_spike",
 				  "high",
@@ -233,19 +211,16 @@ void RunEventTask() {
 				  current.timestamp);
 	}
 
-	// Rising-edge detection for overload warning.
-	const bool overload_now = current.current > GetWarningCurrentThreshold();
-	if (overload_now && !g_overload_active) {
+	if (evaluation.emit_overload_warning) {
 		EmitEvent(EventKind::OverloadWarning,
 				  "overload_warning",
 				  "high",
 				  "Current exceeded warning threshold",
 				  current.timestamp);
 	}
-	g_overload_active = overload_now;
+	g_overload_active = evaluation.overload_active;
 
-	// Detect active-to-zero transition as a power-down event.
-	if (IsLoadActive(g_previous_sample) && IsLoadZero(current)) {
+	if (evaluation.emit_power_down) {
 		EmitEvent(EventKind::PowerDown,
 				  "power_down",
 				  "medium",
@@ -255,4 +230,3 @@ void RunEventTask() {
 
 	g_previous_sample = current;
 }
-

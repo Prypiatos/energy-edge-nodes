@@ -21,6 +21,39 @@ The node firmware is expected to:
 * handle backend commands such as status requests and config updates
 * maintain shared global system state safely
 
+## Local Configuration
+
+Runtime configuration is loaded from LittleFS at `/config.json`.
+
+The repository tracks [data/config.example.json](/home/sheron/Documents/energy-edge-nodes/data/config.example.json) as a schema example and ignores `data/config.json` so each developer can keep node identity and Wi-Fi credentials out of git.
+
+To provision a real ESP32:
+
+1. Create `data/config.json` from the example file.
+2. Fill in the real `node_id`, `node_type`, Wi-Fi credentials, MQTT broker settings, and thresholds.
+3. Validate the JSON locally.
+4. Upload the LittleFS filesystem image.
+5. Upload the firmware.
+
+Validate the example config with:
+
+```bash
+./scripts/validate-config-example.sh
+```
+
+Example:
+
+```bash
+cp data/config.example.json data/config.json
+./scripts/validate-config-example.sh data/config.json
+pio run -t uploadfs
+pio run -t upload
+```
+
+When the node boots, it reads `/config.json` from LittleFS.
+
+Current sensor integration defaults to the PZEM library's ESP32 `Serial2` example wiring (`RX=16`, `TX=17`). If your hardware uses different pins, update the sensor manager before flashing.
+
 <details>
 <summary><strong>Internal Firmware Guide for the E1 Team</strong></summary>
 

@@ -8,6 +8,16 @@ Run the repository setup once after cloning:
 
 This configures the local Git hooks used by the repository.
 
+## Device Configuration
+
+Node identity and Wi-Fi credentials are no longer stored in tracked headers.
+
+- Use `data/config.example.json` as the schema reference.
+- Keep the real device config in `data/config.json` locally; it is gitignored.
+- Validate the JSON before upload with `./scripts/validate-config-example.sh`.
+- Include MQTT broker host and port in the local config before hardware validation.
+- Current PZEM integration assumes ESP32 `Serial2` on `RX=16` and `TX=17` unless changed in code.
+
 ## Commit Convention
 
 Commit messages must follow this format:

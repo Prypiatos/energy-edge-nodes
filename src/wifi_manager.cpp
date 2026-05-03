@@ -1,9 +1,9 @@
 #include <Arduino.h>
-#include "wifi_manager.h"
 #include <WiFi.h>
-#include "globals.h"
-#include "wifi_config.h"
+
 #include "config.h"
+#include "globals.h"
+#include "wifi_manager.h"
 
 static void TaskWifi(void* pvParameters) {
     (void)pvParameters;
@@ -15,17 +15,25 @@ static void TaskWifi(void* pvParameters) {
 
     while (true)
     {
+        if (!HasWifiCredentials()) {
+            g_system_state.wifi_connected = false;
+            UpdateSystemStatus();
+            vTaskDelay(pdMS_TO_TICKS(kWifiConnectedCheckMs));
+            continue;
+        }
+
         if (WiFi.status() != WL_CONNECTED)
         {
             Serial.print("Connecting to WiFi: ");
-            Serial.println(WIFI_SSID);
+            Serial.println(g_runtime_config.wifi_ssid);
 
             g_system_state.wifi_connected = false;
+            UpdateSystemStatus();
 
             WiFi.disconnect(true);
             vTaskDelay(pdMS_TO_TICKS(kWifiShortDelayMs));
 
-            WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+            WiFi.begin(g_runtime_config.wifi_ssid, g_runtime_config.wifi_password);
 
             int tries = 0;
 
@@ -46,11 +54,13 @@ static void TaskWifi(void* pvParameters) {
                 Serial.println(WiFi.RSSI());
 
                 g_system_state.wifi_connected = true;
+                UpdateSystemStatus();
             }
             else
             {
                 Serial.println("WiFi connect failed, retrying...");
                 g_system_state.wifi_connected = false;
+                UpdateSystemStatus();
 
                 vTaskDelay(pdMS_TO_TICKS(kWifiRetryBackoffMs));
             }
@@ -58,6 +68,7 @@ static void TaskWifi(void* pvParameters) {
         else
         {
             g_system_state.wifi_connected = true;
+            UpdateSystemStatus();
             vTaskDelay(pdMS_TO_TICKS(kWifiConnectedCheckMs));
         }
     }
