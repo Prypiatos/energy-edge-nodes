@@ -34,3 +34,9 @@ constexpr int kWifiMaxRetryCount = 50;
 constexpr int kWifiShortDelayMs = 200;
 constexpr int kWifiRetryBackoffMs = 2000;
 constexpr int kWifiConnectedCheckMs = 5000;
+
+static constexpr std::size_t kTopicSize   = 128;
+static constexpr std::size_t kPayloadSize = 512;
+
+
+
