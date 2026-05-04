@@ -16,6 +16,7 @@ static constexpr std::uint32_t kDefaultEventCooldownSec = 10;
 // MQTT topic template used for publishing node event messages.
 static constexpr char kEventTopicTemplate[] = "energy/nodes/%s/events";
 
+
 // Internal event categories used for cooldown bookkeeping.
 enum class EventKind : std::size_t {
 	PowerSpike = 0,

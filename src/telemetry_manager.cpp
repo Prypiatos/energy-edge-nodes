@@ -21,6 +21,8 @@
 // MQTT topic template — matches the agreed interface spec
 static constexpr char kTelemetryTopicTemplate[] = "energy/nodes/%s/telemetry";
 
+
+
 // Sequence number incremented on every published telemetry message
 static std::uint32_t g_telemetry_sequence_no = 0;
 

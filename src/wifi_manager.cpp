@@ -24,7 +24,7 @@ static void TaskWifi(void* pvParameters) {
 
         if (WiFi.status() != WL_CONNECTED)
         {
-            Serial.print("Connecting to WiFi: ");
+            Serial.print("NOT CONNECTED. Connecting to WiFi: ");
             Serial.println(g_runtime_config.wifi_ssid);
 
             g_system_state.wifi_connected = false;
@@ -50,8 +50,20 @@ static void TaskWifi(void* pvParameters) {
                 Serial.print("WiFi connected. IP: ");
                 Serial.println(WiFi.localIP());
 
+                Serial.print("Pinging broker: ");
+                Serial.println(g_runtime_config.mqtt_host);
+
                 Serial.print("RSSI: ");
                 Serial.println(WiFi.RSSI());
+
+                Serial.println("=== WIFI DEBUG ===");
+                Serial.print("ESP32 IP       : "); Serial.println(WiFi.localIP());
+                Serial.print("Gateway IP     : "); Serial.println(WiFi.gatewayIP());
+                Serial.print("Subnet         : "); Serial.println(WiFi.subnetMask());
+                Serial.print("MQTT Host      : "); Serial.println(g_runtime_config.mqtt_host);
+                Serial.print("MQTT Port      : "); Serial.println(g_runtime_config.mqtt_port);
+                Serial.print("SSID           : "); Serial.println(g_runtime_config.wifi_ssid);
+                Serial.println("==================");
 
                 g_system_state.wifi_connected = true;
                 UpdateSystemStatus();
@@ -68,8 +80,11 @@ static void TaskWifi(void* pvParameters) {
         else
         {
             g_system_state.wifi_connected = true;
+            Serial.print("CONNECTED. Connecting to WiFi: ");
+            Serial.println(g_runtime_config.wifi_ssid);
             UpdateSystemStatus();
             vTaskDelay(pdMS_TO_TICKS(kWifiConnectedCheckMs));
+
         }
     }
 }
