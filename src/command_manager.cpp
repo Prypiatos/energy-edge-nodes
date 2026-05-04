@@ -101,6 +101,24 @@ bool ApplySupportedConfigFields(JsonVariantConst root, RuntimeConfig* updated_co
 
     bool changed = false;
 
+    const bool has_wifi_ssid = !root["wifi_ssid"].isNull();
+    const bool has_wifi_password = !root["wifi_password"].isNull();
+    if (has_wifi_ssid != has_wifi_password) {
+        return false;
+    }
+
+    if (has_wifi_ssid && has_wifi_password) {
+        const char* wifi_ssid = root["wifi_ssid"].as<const char*>();
+        const char* wifi_password = root["wifi_password"].as<const char*>();
+        if (wifi_ssid == nullptr || wifi_password == nullptr || wifi_ssid[0] == '\0' || wifi_password[0] == '\0') {
+            return false;
+        }
+
+        CopyString(updated_config->wifi_ssid, sizeof(updated_config->wifi_ssid), wifi_ssid);
+        CopyString(updated_config->wifi_password, sizeof(updated_config->wifi_password), wifi_password);
+        changed = true;
+    }
+
     if (!root["telemetry_interval_sec"].isNull()) {
         const std::uint32_t value = root["telemetry_interval_sec"].as<std::uint32_t>();
         if (value == 0) {
