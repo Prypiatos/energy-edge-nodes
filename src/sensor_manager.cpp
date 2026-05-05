@@ -33,6 +33,9 @@ static unsigned long g_last_sample_ms = 0;
 // Called once from setup() in main.cpp
 // ─────────────────────────────────────────────────────────────────────────────
 void InitSensorManager() {
+
+    Serial2.begin(9600, SERIAL_8N1, 16, 17); 
+    
     g_consecutive_failures = 0;
     g_last_sample_ms = 0;
     Serial.println("[sensor] Sensor manager initialised");

@@ -1,9 +1,9 @@
 {
   "node_id": "plug_01",
   "node_type": "plug",
-  "wifi_ssid": "replace-with-ssid",
-  "wifi_password": "replace-with-password",
-  "mqtt_host": "192.168.1.10",
+  "wifi_ssid": "Local host",
+  "wifi_password": "qqqqqqqq",
+  "mqtt_host": "192.168.51.125",
   "mqtt_port": 1883,
   "mqtt_username": "",
   "mqtt_password": "",

@@ -18,7 +18,7 @@ void setup() {
     InitSystemState();
 
     // Initialize runtime configuration first (loads from flash, falls back to defaults).
-    if (!InitRuntimeConfig()) {
+    if (!InitRuntimeConfig(kFlashConfigPath)) {
         Serial.println("Config load failed, using defaults");
     }
     UpdateSystemStatus();
