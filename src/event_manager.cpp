@@ -4,14 +4,13 @@
 #include "config.h"
 #include "globals.h"
 #include "mqtt_manager.h"
-#include "time_manager.h"
 #include "event_rules.h"
 
 #include <cstdio>
 #include <cstring>
 
 // Operational thresholds and cooldown for event generation.
-static constexpr std::uint32_t kDefaultEventCooldownSec = 10;
+static constexpr std::uint64_t kDefaultEventCooldownMs = 10000ULL;
 
 // MQTT topic template used for publishing node event messages.
 static constexpr char kEventTopicTemplate[] = "energy/nodes/%s/events";
@@ -31,7 +30,7 @@ static bool g_has_previous_sample = false;
 static bool g_overload_active = false;
 
 // Per-event last-emitted timestamps used to apply cooldown.
-static std::uint32_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
+static std::uint64_t g_last_event_timestamps[static_cast<std::size_t>(EventKind::Count)] = {};
 
 // Uses runtime override when present; otherwise falls back to compile-time default.
 static float GetWarningCurrentThreshold() {
@@ -52,26 +51,26 @@ static float GetPowerSpikeDeltaThreshold() {
 }
 
 // Returns true when the event kind is still inside its suppression window.
-static bool IsWithinCooldown(EventKind kind, std::uint32_t timestamp_sec) {
+static bool IsWithinCooldown(EventKind kind, std::uint64_t timestamp_ms) {
 	const std::size_t index = static_cast<std::size_t>(kind);
-	const std::uint32_t last_timestamp = g_last_event_timestamps[index];
+	const std::uint64_t last_timestamp = g_last_event_timestamps[index];
 	if (last_timestamp == 0) {
 		return false;
 	}
 
 	// Guard against clock regressions (e.g. NTP sync moving time backwards).
 	// Treat any non-advancing or reversed timestamp as still within cooldown.
-	if (timestamp_sec <= last_timestamp) {
+	if (timestamp_ms <= last_timestamp) {
 		return true;
 	}
 
 	// Suppress duplicate event type bursts within a fixed cooldown window.
-	return (timestamp_sec - last_timestamp) < kDefaultEventCooldownSec;
+	return (timestamp_ms - last_timestamp) < kDefaultEventCooldownMs;
 }
 
 // Records the latest emission time for cooldown checks.
-static void MarkEventEmitted(EventKind kind, std::uint32_t timestamp_sec) {
-	g_last_event_timestamps[static_cast<std::size_t>(kind)] = timestamp_sec;
+static void MarkEventEmitted(EventKind kind, std::uint64_t timestamp_ms) {
+	g_last_event_timestamps[static_cast<std::size_t>(kind)] = timestamp_ms;
 }
 
 // Builds the MQTT event topic for the configured node identity.
@@ -83,23 +82,20 @@ static void BuildTopic(char* topic, std::size_t topic_size) {
 	std::snprintf(topic, topic_size, kEventTopicTemplate, GetNodeId());
 }
 
-// Serializes a single EventMessage as compact JSON with an ISO 8601 timestamp.
+// Serializes a single EventMessage as compact JSON with an epoch-millisecond timestamp.
 static void BuildEventPayload(const EventMessage& event, char* payload, std::size_t payload_size) {
 	if (payload == nullptr || payload_size == 0) {
 		return;
 	}
 
-	char timestamp_str[32] = {};
-	FormatTimestampISO8601(event.timestamp, timestamp_str, sizeof(timestamp_str));
-
 	std::snprintf(payload,
 				  payload_size,
-				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":\"%s\","
+				  "{\"node_id\":\"%s\",\"node_type\":\"%s\",\"timestamp\":%llu,"
 				  "\"event_type\":\"%s\",\"severity\":\"%s\",\"message\":\"%s\","
 				  "\"buffered\":%s}",
 				  GetNodeId(),
 				  GetNodeType(),
-				  timestamp_str,
+				  static_cast<unsigned long long>(event.timestamp),
 				  event.event_type,
 				  event.severity,
 				  event.message,
@@ -136,7 +132,7 @@ static void BuildEvent(EventMessage* event,
 					   const char* event_type,
 					   const char* severity,
 					   const char* message,
-					   std::uint32_t timestamp,
+					   std::uint64_t timestamp,
 					   bool buffered) {
 	if (event == nullptr) {
 		return;
@@ -155,7 +151,7 @@ static void EmitEvent(EventKind kind,
 					  const char* event_type,
 					  const char* severity,
 					  const char* message,
-					  std::uint32_t timestamp) {
+					  std::uint64_t timestamp) {
 	if (IsWithinCooldown(kind, timestamp)) {
 		return;
 	}

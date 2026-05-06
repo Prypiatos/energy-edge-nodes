@@ -14,7 +14,7 @@ constexpr std::size_t kOutgoingTopicMaxLength = 128;
 constexpr std::size_t kOutgoingPayloadMaxLength = 512;
 
 struct SensorSample {
-    std::uint32_t timestamp;
+    std::uint64_t timestamp;
     float voltage;
     float current;
     float power;
@@ -64,5 +64,4 @@ struct SystemState {
     std::uint32_t buffered_count;
     char status[24];
 };
-
 

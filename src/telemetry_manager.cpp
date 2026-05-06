@@ -45,7 +45,7 @@ void InitTelemetryManager() {
 // ─────────────────────────────────────────────────────────────────────────────
 // BuildTelemetryPayload (private helper)
 // Fills payload buffer with a JSON string matching the agreed external contract:
-//   node_id, timestamp (ms epoch), voltage, current, power, energy_wh
+//   node_id, timestamp, voltage, current, power, energy_wh, sequence_no, buffered
 // ─────────────────────────────────────────────────────────────────────────────
 static void BuildTelemetryPayload(const SensorSample& sample,
                                    std::uint32_t sequence_no,
@@ -59,14 +59,18 @@ static void BuildTelemetryPayload(const SensorSample& sample,
         "\"voltage\":%.1f,"
         "\"current\":%.2f,"
         "\"power\":%.1f,"
-        "\"energy_wh\":%.1f"
+        "\"energy_wh\":%.1f,"
+        "\"sequence_no\":%lu,"
+        "\"buffered\":%s"
         "}",
         kDefaultNodeId,
         static_cast<unsigned long long>(sample.timestamp),
         sample.voltage,
         sample.current,
         sample.power,
-        sample.energy_wh
+        sample.energy_wh,
+        static_cast<unsigned long>(sequence_no),
+        buffered ? "true" : "false"
     );
 }
 

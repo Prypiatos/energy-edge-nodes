@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "globals.h"
+#include "time_manager.h"
 
 #include <Arduino.h>
 #include <PZEM004Tv30.h>
@@ -64,8 +65,7 @@ static bool TryReadPzem(SensorSample& sample) {
         return false;
     }
 
-    // sample.timestamp = static_cast<std::uint32_t>(millis() / 1000UL);
-    sample.timestamp = millis();
+    sample.timestamp = GetCurrentTimestampMs();
     sample.voltage   = voltage;
     sample.current   = current;
     sample.power     = power;
