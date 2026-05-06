@@ -21,13 +21,12 @@
 // MQTT topic template — matches the agreed interface spec
 static constexpr char kTelemetryTopicTemplate[] = "energy/nodes/%s/telemetry";
 
-
-
 // Sequence number incremented on every published telemetry message
 static std::uint32_t g_telemetry_sequence_no = 0;
 
 // Tracks when we last published (milliseconds)
 static unsigned long g_last_publish_ms = 0;
+
 
 // Buffer sizes
 static constexpr std::size_t kTopicBufferSize   = 128;
@@ -46,7 +45,7 @@ void InitTelemetryManager() {
 // ─────────────────────────────────────────────────────────────────────────────
 // BuildTelemetryPayload (private helper)
 // Fills payload buffer with a JSON string matching the agreed external contract:
-//   node_id, timestamp, voltage, current, power, energy_wh, sequence_no, buffered
+//   node_id, timestamp (ms epoch), voltage, current, power, energy_wh
 // ─────────────────────────────────────────────────────────────────────────────
 static void BuildTelemetryPayload(const SensorSample& sample,
                                    std::uint32_t sequence_no,
@@ -56,29 +55,25 @@ static void BuildTelemetryPayload(const SensorSample& sample,
     std::snprintf(payload, payload_size,
         "{"
         "\"node_id\":\"%s\","
-        "\"timestamp\":%lu,"
+        "\"timestamp\":%llu,"
         "\"voltage\":%.1f,"
         "\"current\":%.2f,"
         "\"power\":%.1f,"
-        "\"energy_wh\":%.1f,"
-        "\"sequence_no\":%lu,"
-        "\"buffered\":%s"
+        "\"energy_wh\":%.1f"
         "}",
         kDefaultNodeId,
-        static_cast<unsigned long>(sample.timestamp),
+        static_cast<unsigned long long>(sample.timestamp),
         sample.voltage,
         sample.current,
         sample.power,
-        sample.energy_wh,
-        static_cast<unsigned long>(sequence_no),
-        buffered ? "true" : "false"
+        sample.energy_wh
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RunTelemetryTask
 // Called every loop() iteration from main.cpp.
-// Uses elapsed-time gating to publish every kTelemetryPublishIntervalSec seconds.
+// Uses elapsed-time gating to publish every telemetry_interval_sec seconds.
 // ─────────────────────────────────────────────────────────────────────────────
 void RunTelemetryTask() {
     const unsigned long now_ms = millis();
@@ -99,7 +94,7 @@ void RunTelemetryTask() {
     char topic[kTopicSize];
     std::snprintf(topic, sizeof(topic), kTelemetryTopicTemplate, kDefaultNodeId);
 
-  char payload[kPayloadSize];
+    char payload[kPayloadSize];
     BuildTelemetryPayload(g_latest_sample, g_telemetry_sequence_no, false,
                           payload, sizeof(payload));
 

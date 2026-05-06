@@ -28,7 +28,7 @@ struct EventMessage {
     char event_type[32];
     char severity[16];
     char message[128];
-    std::uint32_t timestamp;
+    std::uint64_t timestamp;
     bool buffered;
 };
 

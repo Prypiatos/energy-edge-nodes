@@ -64,7 +64,8 @@ static bool TryReadPzem(SensorSample& sample) {
         return false;
     }
 
-    sample.timestamp = static_cast<std::uint32_t>(millis() / 1000UL);
+    // sample.timestamp = static_cast<std::uint32_t>(millis() / 1000UL);
+    sample.timestamp = millis();
     sample.voltage   = voltage;
     sample.current   = current;
     sample.power     = power;
