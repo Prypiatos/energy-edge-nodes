@@ -45,11 +45,9 @@ void InitTelemetryManager() {
 // ─────────────────────────────────────────────────────────────────────────────
 // BuildTelemetryPayload (private helper)
 // Fills payload buffer with a JSON string matching the agreed external contract:
-//   node_id, timestamp, voltage, current, power, energy_wh, sequence_no, buffered
+//   node_id, timestamp, voltage, current, power, energy_wh
 // ─────────────────────────────────────────────────────────────────────────────
 static void BuildTelemetryPayload(const SensorSample& sample,
-                                   std::uint32_t sequence_no,
-                                   bool buffered,
                                    char* payload,
                                    std::size_t payload_size) {
     std::snprintf(payload, payload_size,
@@ -59,18 +57,14 @@ static void BuildTelemetryPayload(const SensorSample& sample,
         "\"voltage\":%.1f,"
         "\"current\":%.2f,"
         "\"power\":%.1f,"
-        "\"energy_wh\":%.1f,"
-        "\"sequence_no\":%lu,"
-        "\"buffered\":%s"
+        "\"energy_wh\":%.1f"
         "}",
         kDefaultNodeId,
         static_cast<unsigned long long>(sample.timestamp),
         sample.voltage,
         sample.current,
         sample.power,
-        sample.energy_wh,
-        static_cast<unsigned long>(sequence_no),
-        buffered ? "true" : "false"
+        sample.energy_wh
     );
 }
 
@@ -98,9 +92,8 @@ void RunTelemetryTask() {
     char topic[kTopicSize];
     std::snprintf(topic, sizeof(topic), kTelemetryTopicTemplate, kDefaultNodeId);
 
-    char payload[kPayloadSize];
-    BuildTelemetryPayload(g_latest_sample, g_telemetry_sequence_no, false,
-                          payload, sizeof(payload));
+  char payload[kPayloadSize];
+    BuildTelemetryPayload(g_latest_sample, payload, sizeof(payload));
 
     // Try to publish via Damindu's MQTT manager
     const bool published = MqttPublish(topic, payload);
@@ -112,10 +105,6 @@ void RunTelemetryTask() {
     } else {
         // Publish failed — hand to Damindu's buffer manager for retry
         Serial.println("[telemetry] Publish failed, buffering");
-
-        // Rebuild payload with buffered=true before enqueuing
-        BuildTelemetryPayload(g_latest_sample, g_telemetry_sequence_no, true,
-                              payload, sizeof(payload));
 
         OutgoingMessage msg = {};
         std::strncpy(msg.topic,   topic,   sizeof(msg.topic)   - 1);
