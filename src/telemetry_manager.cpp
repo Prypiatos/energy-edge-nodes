@@ -59,7 +59,7 @@ static void BuildTelemetryPayload(const SensorSample& sample,
         "\"power\":%.1f,"
         "\"energy_wh\":%.1f"
         "}",
-        kDefaultNodeId,
+        GetNodeId(),
         static_cast<unsigned long long>(sample.timestamp),
         sample.voltage,
         sample.current,
@@ -90,7 +90,7 @@ void RunTelemetryTask() {
 
     // Build topic and payload
     char topic[kTopicSize];
-    std::snprintf(topic, sizeof(topic), kTelemetryTopicTemplate, kDefaultNodeId);
+    std::snprintf(topic, sizeof(topic), kTelemetryTopicTemplate, GetNodeId());
 
   char payload[kPayloadSize];
     BuildTelemetryPayload(g_latest_sample, payload, sizeof(payload));

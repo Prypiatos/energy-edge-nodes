@@ -83,7 +83,7 @@ static void BuildHealthPayload(const SystemState& state,
         "\"sensor_ok\":%s,"
         "\"buffered_count\":%lu"
         "}",
-        kDefaultNodeId,
+        GetNodeId(),
         kDefaultNodeType,
         static_cast<unsigned long long>(timestamp_ms),
         static_cast<unsigned long>(sequence_no),
@@ -120,7 +120,7 @@ void RunHealthTask() {
 
     // Build topic and payload
     char topic[kTopicBufferSize];
-    std::snprintf(topic, sizeof(topic), kHealthTopicTemplate, kDefaultNodeId);
+    std::snprintf(topic, sizeof(topic), kHealthTopicTemplate, GetNodeId());
 
     char payload[kPayloadBufferSize];
     BuildHealthPayload(snapshot, g_health_sequence_no, status,
