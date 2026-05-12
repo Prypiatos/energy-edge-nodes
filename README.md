@@ -804,7 +804,7 @@ The node should timestamp all outgoing messages.
 
 * use NTP after Wi-Fi connection
 * store UTC timestamps
-* use ISO 8601 format in payloads
+* publish 13-digit Unix epoch timestamps in milliseconds
 
 If real UTC is not available at first boot, you may temporarily use uptime-based timestamps internally, but published messages should eventually use proper UTC.
 
@@ -1059,7 +1059,7 @@ The following fields should appear in most published messages:
 | ------------- | ------- | ----------------------------------------------------------------- |
 | `node_id`     | string  | Unique node identifier                                            |
 | `node_type`   | string  | `plug`, `circuit`, or `main`                                      |
-| `timestamp`   | string  | ISO 8601 UTC timestamp                                            |
+| `timestamp`   | integer | 13-digit Unix epoch timestamp in milliseconds                     |
 | `sequence_no` | integer | Monotonic message number from node                                |
 | `buffered`    | boolean | Whether the message was sent from local buffer after reconnection |
 
@@ -1129,7 +1129,7 @@ Published only when an important event occurs.
 | ------------ | ------- | ---------------------------------------- |
 | `node_id`    | string  | Unique node identifier                   |
 | `node_type`  | string  | `plug`, `circuit`, or `main`             |
-| `timestamp`  | string  | Event time                               |
+| `timestamp`  | integer | Event time in epoch ms                   |
 | `event_type` | string  | Type of event                            |
 | `severity`   | string  | `low`, `medium`, `high`, `critical`      |
 | `message`    | string  | Short human-readable description         |
@@ -1147,7 +1147,7 @@ Published only when an important event occurs.
 {
   "node_id": "circuit_01",
   "node_type": "circuit",
-  "timestamp": "2026-04-10T10:16:22Z",
+  "timestamp": 1775816182000,
   "event_type": "overload_warning",
   "severity": "high",
   "message": "Current exceeded warning threshold",
@@ -1179,7 +1179,7 @@ Recommended every 30 seconds.
 | ---------------- | ------- | ------------------------------------------- |
 | `node_id`        | string  | Unique node identifier                      |
 | `node_type`      | string  | `plug`, `circuit`, or `main`                |
-| `timestamp`      | string  | Heartbeat time                              |
+| `timestamp`      | integer | Heartbeat time in epoch ms                  |
 | `sequence_no`    | integer | Monotonic message number from node          |
 | `status`         | string  | `online`, `degraded`, or `offline_intended` |
 | `uptime_sec`     | integer | Time since boot                             |
@@ -1194,7 +1194,7 @@ Recommended every 30 seconds.
 {
   "node_id": "main_01",
   "node_type": "main",
-  "timestamp": "2026-04-10T10:16:30Z",
+  "timestamp": 1775816190000,
   "sequence_no": 220,
   "status": "online",
   "uptime_sec": 1840,
@@ -1230,7 +1230,7 @@ Published only in response to a command on `cmd/get_status`.
 | `request_id`     | string  | Correlates response to request     |
 | `node_id`        | string  | Unique node identifier             |
 | `node_type`      | string  | `plug`, `circuit`, or `main`       |
-| `timestamp`      | string  | Response time                      |
+| `timestamp`      | integer | Response time in epoch ms          |
 | `status`         | string  | Current node state                 |
 | `latest_voltage` | number  | Latest voltage reading             |
 | `latest_current` | number  | Latest current reading             |
@@ -1247,7 +1247,7 @@ Published only in response to a command on `cmd/get_status`.
   "request_id": "req_00123",
   "node_id": "plug_01",
   "node_type": "plug",
-  "timestamp": "2026-04-10T10:17:00Z",
+  "timestamp": 1775816220000,
   "status": "online",
   "latest_voltage": 229.9,
   "latest_current": 1.83,
@@ -1335,7 +1335,7 @@ Example:
 {
   "node_id": "circuit_01",
   "node_type": "circuit",
-  "timestamp": "2026-04-10T10:18:00Z",
+  "timestamp": 1775816280000,
   "event_type": "config_applied",
   "severity": "low",
   "message": "Configuration updated successfully",

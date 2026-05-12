@@ -4,7 +4,7 @@
 
 namespace {
 
-SensorSample BuildSample(std::uint32_t timestamp, float current, float power) {
+SensorSample BuildSample(std::uint64_t timestamp, float current, float power) {
     SensorSample sample = {};
     sample.timestamp = timestamp;
     sample.current = current;

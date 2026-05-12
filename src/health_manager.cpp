@@ -14,6 +14,7 @@
 #include "config.h"
 #include "globals.h"
 #include "mqtt_manager.h"
+#include "time_manager.h"
 
 #include <Arduino.h>
 #include <cstdio>
@@ -67,11 +68,13 @@ static void BuildHealthPayload(const SystemState& state,
                                 const char* status,
                                 char* payload,
                                 std::size_t payload_size) {
+    const std::uint64_t timestamp_ms = GetCurrentTimestampMs();
+
     std::snprintf(payload, payload_size,
         "{"
         "\"node_id\":\"%s\","
         "\"node_type\":\"%s\","
-        "\"timestamp\":%lu,"
+        "\"timestamp\":%llu,"
         "\"sequence_no\":%lu,"
         "\"status\":\"%s\","
         "\"uptime_sec\":%lu,"
@@ -80,9 +83,9 @@ static void BuildHealthPayload(const SystemState& state,
         "\"sensor_ok\":%s,"
         "\"buffered_count\":%lu"
         "}",
-        kDefaultNodeId,
+        GetNodeId(),
         kDefaultNodeType,
-        static_cast<unsigned long>(state.uptime_sec),
+        static_cast<unsigned long long>(timestamp_ms),
         static_cast<unsigned long>(sequence_no),
         status,
         static_cast<unsigned long>(state.uptime_sec),
@@ -117,7 +120,7 @@ void RunHealthTask() {
 
     // Build topic and payload
     char topic[kTopicBufferSize];
-    std::snprintf(topic, sizeof(topic), kHealthTopicTemplate, kDefaultNodeId);
+    std::snprintf(topic, sizeof(topic), kHealthTopicTemplate, GetNodeId());
 
     char payload[kPayloadBufferSize];
     BuildHealthPayload(snapshot, g_health_sequence_no, status,

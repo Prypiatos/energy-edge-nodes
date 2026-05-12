@@ -16,7 +16,7 @@ constexpr std::uint16_t kDefaultMqttPort = 1883;
 
 constexpr char kFlashConfigPath[] = "/config.json";
 
-constexpr char kDefaultNodeId[] = "unprovisioned";
+constexpr char kDefaultNodeId[] = "plug_01";
 constexpr char kDefaultNodeType[] = "plug";
 
 RuntimeConfig GetDefaultRuntimeConfig();
@@ -37,6 +37,5 @@ constexpr int kWifiConnectedCheckMs = 5000;
 
 static constexpr std::size_t kTopicSize   = 128;
 static constexpr std::size_t kPayloadSize = 512;
-
 
 

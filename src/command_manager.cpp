@@ -15,7 +15,6 @@ namespace {
 
 constexpr std::size_t kCommandTopicSize = 128;
 constexpr std::size_t kCommandPayloadSize = 512;
-constexpr std::size_t kStatusTimestampSize = 32;
 constexpr std::size_t kCommandJsonCapacity = 768;
 
 constexpr char kGetStatusTopicTemplate[] = "energy/nodes/%s/cmd/get_status";
@@ -66,8 +65,7 @@ bool HandleGetStatusCommand(JsonVariantConst root) {
     char topic[kOutgoingTopicMaxLength] = {};
     BuildTopic(topic, sizeof(topic), kStatusTopicTemplate);
 
-    char timestamp[kStatusTimestampSize] = {};
-    FormatTimestampISO8601(GetCurrentTimestampSec(), timestamp, sizeof(timestamp));
+    const std::uint64_t timestamp_ms = GetCurrentTimestampMs();
 
     const SensorSample sample = g_latest_sample;
 
@@ -75,13 +73,13 @@ bool HandleGetStatusCommand(JsonVariantConst root) {
     std::snprintf(payload,
                   sizeof(payload),
                   "{\"request_id\":\"%s\",\"node_id\":\"%s\",\"node_type\":\"%s\","
-                  "\"timestamp\":\"%s\",\"status\":\"%s\",\"latest_voltage\":%.2f,"
+                  "\"timestamp\":%llu,\"status\":\"%s\",\"latest_voltage\":%.2f,"
                   "\"latest_current\":%.3f,\"latest_power\":%.2f,\"latest_energy_wh\":%.3f,"
                   "\"latest_frequency\":%.2f,\"latest_power_factor\":%.3f,\"sensor_ok\":%s}",
                   request_id,
                   GetNodeId(),
                   GetNodeType(),
-                  timestamp,
+                  static_cast<unsigned long long>(timestamp_ms),
                   g_system_state.status,
                   static_cast<double>(sample.voltage),
                   static_cast<double>(sample.current),
