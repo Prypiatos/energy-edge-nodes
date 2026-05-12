@@ -75,6 +75,22 @@ static bool TryReadPzem(SensorSample& sample) {
     return true;
 }
 
+// Builds a synthetic zero-value sample when repeated sensor reads fail.
+// This keeps telemetry flowing for "load off" scenarios instead of leaving the
+// node with no valid sample forever.
+static SensorSample BuildZeroSample() {
+    SensorSample sample = {};
+    sample.timestamp = GetCurrentTimestampMs();
+    sample.voltage = 0.0F;
+    sample.current = 0.0F;
+    sample.power = 0.0F;
+    sample.energy_wh = 0.0F;
+    sample.frequency_hz = 0.0F;
+    sample.power_factor = 0.0F;
+    sample.valid = true;
+    return sample;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // RunSensorTask
 // Called every loop() iteration from main.cpp.
@@ -110,8 +126,9 @@ void RunSensorTask() {
                       g_consecutive_failures, kFailureThreshold);
 
         if (g_consecutive_failures >= kFailureThreshold) {
+            g_latest_sample = BuildZeroSample();
             g_system_state.sensor_ok = false;
-            Serial.println("[sensor] Sensor marked UNHEALTHY");
+            Serial.println("[sensor] Sensor marked UNHEALTHY, publishing zero sample");
         }
     }
 }
